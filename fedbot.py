@@ -472,6 +472,73 @@ def reject(update: Update, context: CallbackContext):
     except Exception as e:
         logger.error(f"Unexpected error in reject: {e}")
 
+def stats(update: Update, context: CallbackContext):
+    """Show appeal statistics (admin only)"""
+    try:
+        if update.effective_user.id != ADMIN_ID:
+            update.message.reply_text("❌ Access denied.")
+            return
+            
+        conn = get_db_connection()
+        if not conn:
+            update.message.reply_text("❌ Database error. Please try again later.")
+            return
+            
+        try:
+            c = conn.cursor()
+            
+            # Get basic stats
+            c.execute("SELECT COUNT(*) FROM appeals")
+            total = c.fetchone()[0]
+            
+            c.execute("SELECT COUNT(*) FROM appeals WHERE status='pending'")
+            pending = c.fetchone()[0]
+            
+            c.execute("SELECT COUNT(*) FROM appeals WHERE status='approved'")
+            approved = c.fetchone()[0]
+            
+            c.execute("SELECT COUNT(*) FROM appeals WHERE status='rejected'")
+            rejected = c.fetchone()[0]
+            
+            # Get appeal type distribution
+            c.execute("SELECT appeal_type, COUNT(*) FROM appeals GROUP BY appeal_type")
+            type_stats = "\n".join([f"• {row[0].capitalize()}: {row[1]}" for row in c.fetchall()])
+            
+            # Get recent activity
+            c.execute("SELECT COUNT(*) FROM appeals WHERE created_at >= datetime('now', '-1 day')")
+            last_24h = c.fetchone()[0]
+            
+            c.execute("SELECT COUNT(*) FROM appeals WHERE created_at >= datetime('now', '-7 days')")
+            last_7d = c.fetchone()[0]
+            
+            response = (
+                "📊 <b>Appeal Statistics</b>\n\n"
+                f"<b>Total Appeals:</b> {total}\n"
+                f"<b>Pending:</b> {pending}\n"
+                f"<b>Approved:</b> {approved}\n"
+                f"<b>Rejected:</b> {rejected}\n\n"
+                f"<b>Recent Activity:</b>\n"
+                f"• Last 24h: {last_24h}\n"
+                f"• Last 7 days: {last_7d}\n\n"
+                f"<b>By Appeal Type:</b>\n"
+                f"{type_stats}\n\n"
+                "Use /pending to view pending appeals"
+            )
+            
+            update.message.reply_text(response, parse_mode='HTML')
+            logger.info(f"Admin {update.effective_user.id} viewed statistics")
+            
+        except sqlite3.Error as e:
+            logger.error(f"Database error in stats: {e}")
+            update.message.reply_text("❌ Database error. Please try again later.")
+        finally:
+            conn.close()
+            
+    except TelegramError as e:
+        logger.error(f"Telegram error in stats: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error in stats: {e}")
+
 def error_handler(update: Update, context: CallbackContext):
     """Global error handler"""
     logger.error(f"Update {update} caused error {context.error}")
@@ -496,6 +563,7 @@ def main():
         dp.add_handler(CommandHandler("view", view_appeal))
         dp.add_handler(CommandHandler("approve", approve))
         dp.add_handler(CommandHandler("reject", reject))
+        dp.add_handler(CommandHandler("stats", stats))
         
         # Callbacks
         dp.add_handler(CallbackQueryHandler(handle_appeal_type))
