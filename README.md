@@ -1,4 +1,4 @@
-# HyperFedertion Appeals Bot
+# HyperFederation Appeals Bot
 
 ![photo_2025-07-11_20-46-48](https://github.com/user-attachments/assets/b38e40d0-98a8-4a51-8aa7-272e2bd1a591)
 
