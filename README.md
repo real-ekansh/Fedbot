@@ -220,4 +220,5 @@ For support and questions:
 * [Tech Shreyansh](https://github.com/techyshreyansh)
 ---
 
+If you liked my Work please give my Project a Star ⭐ 
 **Made with ❤️ for the Telegram community**
