@@ -31,26 +31,31 @@ A comprehensive Telegram bot designed to handle FedBan appeals and Fed Admin req
 
 ### Setup
 
-1. **Clone the repository**
+1. **Install Packages**
+```bash
+sudo apt update && sudo apt install -y git python3 python3-venv python3-pip && sudo apt install python3
+```
+
+2. **Clone the repository**
 ```bash
 git clone https://github.com/real-ekansh/Fedbot
 cd Fedbot
 ```
 
-2. **Install dependencies**
+3. **Install dependencies**
 ```bash
 pip install -r requirements.txt
 ```
 
-3. **Create environment file snd Activate it** 
+4. **Create environment file snd Activate it** 
 ```bash
 python -m venv venv 
 source venv/bin/activate
 ```
 
-4. **Configure environment variables** (see Configuration section)
+5. **Configure environment variables** (see Configuration section)
 
-5. **Run the bot**
+6. **Run the bot**
 ```bash
 python fedbot.py
 ```
