@@ -16,13 +16,13 @@ class BotStatusMonitor:
     def __init__(self):
         self.start_time = time.time()
         self.bot_state = "Online and operational"
-
+    
     def get_bot_uptime(self):
         """Calculate bot uptime since initialization"""
         uptime_seconds = time.time() - self.start_time
         uptime_delta = timedelta(seconds=int(uptime_seconds))
         return str(uptime_delta)
-
+    
     def get_system_uptime(self):
         """Get system uptime"""
         try:
@@ -31,52 +31,54 @@ class BotStatusMonitor:
             return str(uptime_delta)
         except:
             return "Unknown"
-
+    
     def get_os_info(self):
         """Get operating system information"""
         return f"{platform.system()} {platform.release()}"
-
+    
     def get_hostname(self):
         """Get system hostname"""
         return platform.node()
-
+    
     def get_kernel_version(self):
         """Get kernel version"""
-        return platform.version()     def get_package_count(self):
+        return platform.version()
+    
+    def get_package_count(self):
         """Get number of installed packages (varies by OS)"""
         try:
             if platform.system() == "Linux":
                 # Try different package managers
                 try:
                     # For Debian/Ubuntu (apt)
-                    result = subprocess.run(['dpkg', '--get-selections'],
+                    result = subprocess.run(['dpkg', '--get-selections'], 
                                           capture_output=True, text=True)
                     if result.returncode == 0:
                         return str(len(result.stdout.strip().split('\n')))
                 except:
                     pass
-
+                
                 try:
                     # For Red Hat/CentOS (rpm)
-                    result = subprocess.run(['rpm', '-qa'],
+                    result = subprocess.run(['rpm', '-qa'], 
                                           capture_output=True, text=True)
                     if result.returncode == 0:
                         return str(len(result.stdout.strip().split('\n')))
                 except:
                     pass
-
+                
                 try:
                     # For Arch Linux (pacman)
-                    result = subprocess.run(['pacman', '-Q'],
+                    result = subprocess.run(['pacman', '-Q'], 
                                           capture_output=True, text=True)
                     if result.returncode == 0:
                         return str(len(result.stdout.strip().split('\n')))
                 except:
                     pass
-
+            
             # If specific package manager not found, count Python packages
             try:
-                result = subprocess.run([sys.executable, '-m', 'pip', 'list'],
+                result = subprocess.run([sys.executable, '-m', 'pip', 'list'], 
                                       capture_output=True, text=True)
                 if result.returncode == 0:
                     # Count lines minus header
@@ -86,7 +88,9 @@ class BotStatusMonitor:
                 pass
             return "Unknown"
         except:
-            return "Unknown"    def get_shell_info(self):
+            return "Unknown"
+    
+    def get_shell_info(self):
         """Get shell information"""
         try:
             shell = os.environ.get('SHELL', 'Unknown')
@@ -95,7 +99,7 @@ class BotStatusMonitor:
             return shell
         except:
             return "Unknown"
-
+    
     def get_memory_info(self):
         """Get memory usage information"""
         try:
@@ -106,11 +110,11 @@ class BotStatusMonitor:
             return f"{used_gb:.1f}GB / {total_gb:.1f}GB ({percentage}%)"
         except:
             return "Unknown"
-
+    
     def get_python_version(self):
         """Get Python version"""
         return f"{sys.version.split()[0]}"
-
+    
     def get_package_version(self, package_name):
         """Get version of a specific package"""
         try:
@@ -119,19 +123,20 @@ class BotStatusMonitor:
             return "Not installed"
         except Exception:
             return "Unknown"
-
+    
     def get_sqlite_version(self):
         """Get SQLite version"""
         try:
             return sqlite3.sqlite_version
         except:
             return "Unknown"
-
+    
     def set_bot_state(self, state):
         """Update bot state"""
         self.bot_state = state
-
-import platformimport psutil
+    
+import platform
+import psutil
 import subprocess
 import sys
 import sqlite3
@@ -148,13 +153,13 @@ class BotStatusMonitor:
     def __init__(self):
         self.start_time = time.time()
         self.bot_state = "Online and operational"
-
+    
     def get_bot_uptime(self):
         """Calculate bot uptime since initialization"""
         uptime_seconds = time.time() - self.start_time
         uptime_delta = timedelta(seconds=int(uptime_seconds))
         return str(uptime_delta)
-
+    
     def get_system_uptime(self):
         """Get system uptime"""
         try:
@@ -163,18 +168,19 @@ class BotStatusMonitor:
             return str(uptime_delta)
         except:
             return "Unknown"
-
+    
     def get_os_info(self):
         """Get operating system information"""
         return f"{platform.system()} {platform.release()}"
-
+    
     def get_hostname(self):
         """Get system hostname"""
         return platform.node()
-
+    
     def get_kernel_version(self):
         """Get kernel version"""
         return platform.version()
+    
     def get_package_count(self):
         """Get number of installed packages (varies by OS)"""
         try:
@@ -182,34 +188,34 @@ class BotStatusMonitor:
                 # Try different package managers
                 try:
                     # For Debian/Ubuntu (apt)
-                    result = subprocess.run(['dpkg', '--get-selections'],
+                    result = subprocess.run(['dpkg', '--get-selections'], 
                                           capture_output=True, text=True)
                     if result.returncode == 0:
                         return str(len(result.stdout.strip().split('\n')))
                 except:
                     pass
-
+                
                 try:
                     # For Red Hat/CentOS (rpm)
-                    result = subprocess.run(['rpm', '-qa'],
+                    result = subprocess.run(['rpm', '-qa'], 
                                           capture_output=True, text=True)
                     if result.returncode == 0:
                         return str(len(result.stdout.strip().split('\n')))
                 except:
                     pass
-
+                
                 try:
                     # For Arch Linux (pacman)
-                    result = subprocess.run(['pacman', '-Q'],
+                    result = subprocess.run(['pacman', '-Q'], 
                                           capture_output=True, text=True)
                     if result.returncode == 0:
                         return str(len(result.stdout.strip().split('\n')))
                 except:
                     pass
-
+            
             # If specific package manager not found, count Python packages
             try:
-                result = subprocess.run([sys.executable, '-m', 'pip', 'list'],
+                result = subprocess.run([sys.executable, '-m', 'pip', 'list'], 
                                       capture_output=True, text=True)
                 if result.returncode == 0:
                     # Count lines minus header
@@ -220,6 +226,7 @@ class BotStatusMonitor:
             return "Unknown"
         except:
             return "Unknown"
+    
     def get_shell_info(self):
         """Get shell information"""
         try:
@@ -229,7 +236,7 @@ class BotStatusMonitor:
             return shell
         except:
             return "Unknown"
-
+    
     def get_memory_info(self):
         """Get memory usage information"""
         try:
@@ -240,11 +247,11 @@ class BotStatusMonitor:
             return f"{used_gb:.1f}GB / {total_gb:.1f}GB ({percentage}%)"
         except:
             return "Unknown"
-
+    
     def get_python_version(self):
         """Get Python version"""
         return f"{sys.version.split()[0]}"
-
+    
     def get_package_version(self, package_name):
         """Get version of a specific package"""
         try:
@@ -253,19 +260,20 @@ class BotStatusMonitor:
             return "Not installed"
         except Exception:
             return "Unknown"
-
+    
     def get_sqlite_version(self):
         """Get SQLite version"""
         try:
             return sqlite3.sqlite_version
         except:
             return "Unknown"
-
+    
     def set_bot_state(self, state):
         """Update bot state"""
         self.bot_state = state
-
-    def get_status_report(self):        """Generate complete status report in the exact format requested"""
+    
+    def get_status_report(self):
+        """Generate complete status report in the exact format requested"""
         report = f"""**Bot Status:**
 • State: {self.bot_state}
 • Uptime: {self.get_bot_uptime()}
@@ -284,7 +292,7 @@ Memory: {self.get_memory_info()}
 • python-telegram-bot: {self.get_package_version('python-telegram-bot')}
 • SQLite: {self.get_sqlite_version()}"""
         return report
-
+    
     def get_status_dict(self):
         """Return status as dictionary for programmatic use"""
         return {
@@ -310,11 +318,11 @@ Memory: {self.get_memory_info()}
         }
 
 
-# Example usage# Example usage
+# Example usage
 if __name__ == "__main__":
     # Initialize the status monitor
     status_monitor = BotStatusMonitor()
-
+    
     # Print the complete status report
     print(status_monitor.get_status_report())
 
@@ -323,21 +331,21 @@ if __name__ == "__main__":
 class TelegramBotWithStatus:
     def __init__(self):
         self.status_monitor = BotStatusMonitor()
-
+    
     def status_command(self, update, context):
         """Handler for /status command (sync version)"""
         status_report = self.status_monitor.get_status_report()
         update.message.reply_text(status_report, parse_mode='Markdown')
-
+    
     async def async_status_command(self, update, context):
         """Handler for /status command (async version)"""
         status_report = self.status_monitor.get_status_report()
         await update.message.reply_text(status_report, parse_mode='Markdown')
-
+    
     def update_bot_state(self, new_state):
         """Update bot state"""
         self.status_monitor.set_bot_state(new_state)
-
+    
     def get_quick_status(self):
         """Get quick status for logging"""
         return f"Bot: {self.status_monitor.bot_state} | Uptime: {self.status_monitor.get_bot_uptime()}"
@@ -355,6 +363,8 @@ def get_bot_status():
     """Simple function to get bot status - uses global monitor"""
     monitor = get_global_monitor()
     return monitor.get_status_report()
+
+
 # Telegram bot status handler function (sync version for older python-telegram-bot)
 def status_handler(update, context):
     """Status handler function that can be imported directly"""
@@ -399,7 +409,6 @@ def get_bot_status():
     """Simple function to get bot status - uses global monitor"""
     monitor = get_global_monitor()
     return monitor.get_status_report()
-  
 
 
 # Usage examples:
@@ -413,4 +422,3 @@ def get_bot_status():
 # 3. Telegram bot integration:
 # bot = TelegramBotWithStatus()
 # application.add_handler(CommandHandler("status", bot.status_command))
-
