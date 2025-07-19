@@ -143,13 +143,44 @@ class BotStatusMonitor:
         """Update bot state"""
         self.bot_state = state
     
-    def get_status_report(self):
-        """Generate complete status report in the exact format requested"""
-        report = f"""**Bot Status:**
+    def escape_markdown(self, text):
+        """Escape markdown special characters"""
+        if text is None:
+            return "Unknown"
+        # Escape markdown special characters
+        special_chars = ['_', '*', '`', '[', ']', '(', ')', '~', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+        for char in special_chars:
+            text = str(text).replace(char, f'\\{char}')
+        return text
+    
+    def get_status_report(self, use_markdown=True):
+        """Generate complete status report"""
+        if use_markdown:
+            # For Telegram with MarkdownV2
+            report = f"""*Bot Status:*
+• State: {self.escape_markdown(self.bot_state)}
+• Uptime: {self.escape_markdown(self.get_bot_uptime())}
+
+*System Info:*
+OS: {self.escape_markdown(self.get_os_info())}
+Host: {self.escape_markdown(self.get_hostname())}
+Kernel: {self.escape_markdown(self.get_kernel_version())}
+Uptime: {self.escape_markdown(self.get_system_uptime())}
+Packages: {self.escape_markdown(self.get_package_count())}
+Shell: {self.escape_markdown(self.get_shell_info())}
+Memory: {self.escape_markdown(self.get_memory_info())}
+
+*Software Info:*
+• Python: {self.escape_markdown(self.get_python_version())}
+• python\\-telegram\\-bot: {self.escape_markdown(self.get_package_version('python-telegram-bot'))}
+• SQLite: {self.escape_markdown(self.get_sqlite_version())}"""
+        else:
+            # Plain text version
+            report = f"""Bot Status:
 • State: {self.bot_state}
 • Uptime: {self.get_bot_uptime()}
 
-**System Info:**
+System Info:
 OS: {self.get_os_info()}
 Host: {self.get_hostname()}
 Kernel: {self.get_kernel_version()}
@@ -158,7 +189,7 @@ Packages: {self.get_package_count()}
 Shell: {self.get_shell_info()}
 Memory: {self.get_memory_info()}
 
-**Software Info:**
+Software Info:
 • Python: {self.get_python_version()}
 • python-telegram-bot: {self.get_package_version('python-telegram-bot')}
 • SQLite: {self.get_sqlite_version()}"""
@@ -213,10 +244,10 @@ def get_bot_uptime():
     return monitor.get_bot_uptime()
 
 
-def get_bot_status():
+def get_bot_status(use_markdown=True):
     """Simple function to get bot status - uses global monitor"""
     monitor = get_global_monitor()
-    return monitor.get_status_report()
+    return monitor.get_status_report(use_markdown)
 
 
 # Telegram bot integration class
@@ -227,18 +258,28 @@ class TelegramBotWithStatus:
     def status_command(self, update, context):
         """Handler for /status command (sync version)"""
         try:
-            status_report = self.status_monitor.get_status_report()
-            update.message.reply_text(status_report, parse_mode='Markdown')
+            status_report = self.status_monitor.get_status_report(use_markdown=True)
+            update.message.reply_text(status_report, parse_mode='MarkdownV2')
         except Exception as e:
-            update.message.reply_text(f"Error getting status: {str(e)}")
+            # Fallback to plain text if markdown fails
+            try:
+                status_report = self.status_monitor.get_status_report(use_markdown=False)
+                update.message.reply_text(status_report)
+            except Exception as e2:
+                update.message.reply_text(f"Error getting status: {str(e2)}")
     
     async def async_status_command(self, update, context):
         """Handler for /status command (async version)"""
         try:
-            status_report = self.status_monitor.get_status_report()
-            await update.message.reply_text(status_report, parse_mode='Markdown')
+            status_report = self.status_monitor.get_status_report(use_markdown=True)
+            await update.message.reply_text(status_report, parse_mode='MarkdownV2')
         except Exception as e:
-            await update.message.reply_text(f"Error getting status: {str(e)}")
+            # Fallback to plain text if markdown fails
+            try:
+                status_report = self.status_monitor.get_status_report(use_markdown=False)
+                await update.message.reply_text(status_report)
+            except Exception as e2:
+                await update.message.reply_text(f"Error getting status: {str(e2)}")
     
     def update_bot_state(self, new_state):
         """Update bot state"""
@@ -253,19 +294,29 @@ class TelegramBotWithStatus:
 def status_handler(update, context):
     """Status handler function that can be imported directly (sync version)"""
     try:
-        status_report = get_bot_status()
-        update.message.reply_text(status_report, parse_mode='Markdown')
+        status_report = get_bot_status(use_markdown=True)
+        update.message.reply_text(status_report, parse_mode='MarkdownV2')
     except Exception as e:
-        update.message.reply_text(f"Error getting status: {str(e)}")
+        # Fallback to plain text if markdown fails
+        try:
+            status_report = get_bot_status(use_markdown=False)
+            update.message.reply_text(status_report)
+        except Exception as e2:
+            update.message.reply_text(f"Error getting status: {str(e2)}")
 
 
 async def async_status_handler(update, context):
     """Async status handler function for newer python-telegram-bot versions"""
     try:
-        status_report = get_bot_status()
-        await update.message.reply_text(status_report, parse_mode='Markdown')
+        status_report = get_bot_status(use_markdown=True)
+        await update.message.reply_text(status_report, parse_mode='MarkdownV2')
     except Exception as e:
-        await update.message.reply_text(f"Error getting status: {str(e)}")
+        # Fallback to plain text if markdown fails
+        try:
+            status_report = get_bot_status(use_markdown=False)
+            await update.message.reply_text(status_report)
+        except Exception as e2:
+            await update.message.reply_text(f"Error getting status: {str(e2)}")
 
 
 # Example usage
