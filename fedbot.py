@@ -1,6 +1,9 @@
 import logging
 import os
 import sqlite3
+from bot_status import status_handler
+from ping_module import ping_uptime
+from telegram.ext import CommandHandler
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext, MessageHandler, Filters
@@ -559,11 +562,15 @@ def main():
         dp.add_handler(CommandHandler("appeal", appeal))
         
         # Admin commands
-        dp.add_handler(CommandHandler("pending", pending))
-        dp.add_handler(CommandHandler("view", view_appeal))
+        # Admin commands
+
+        dp.add_handler(CommandHandler("view", pending))
+        dp.add_handler(CommandHandler("pending", view_appeal))
         dp.add_handler(CommandHandler("approve", approve))
         dp.add_handler(CommandHandler("reject", reject))
         dp.add_handler(CommandHandler("stats", stats))
+        dp.add_handler(CommandHandler("ping", ping_uptime.ping_command))
+        dp.add_handler(CommandHandler("status", status_handler))
         
         # Callbacks
         dp.add_handler(CallbackQueryHandler(handle_appeal_type))
