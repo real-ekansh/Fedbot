@@ -1,15 +1,20 @@
 import logging
 import os
 import sqlite3
-from bot_status import status_handler
-from ping_module import ping_uptime
-from telegram.ext import CommandHandler
+import subprocess
+import html
+import io
+import asyncio
 from datetime import datetime
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext, MessageHandler, Filters
 from telegram.error import TelegramError
 from dotenv import load_dotenv
 import sys
+
+# from botlog import PTBLogger
+from bot_status import status_handler
+from ping_module import ping_uptime
 
 # Load environment variables from .env file
 load_dotenv()
@@ -25,12 +30,15 @@ logger = logging.getLogger(__name__)
 try:
     BOT_TOKEN = os.getenv('BOT_TOKEN')
     ADMIN_ID = int(os.getenv('ADMIN_ID', 0))
+    OWNER_ID = int(os.getenv('OWNER_ID', 0))  # Added OWNER_ID for shell access
     DB_PATH = os.getenv('DB_PATH', 'appeals.db')
     
     if not BOT_TOKEN:
         raise ValueError("BOT_TOKEN environment variable is required")
     if not ADMIN_ID:
         raise ValueError("ADMIN_ID environment variable is required")
+    if not OWNER_ID:
+        logger.warning("OWNER_ID not set, shell commands will be disabled")
         
 except ValueError as e:
     logger.error(f"Configuration error: {e}")
@@ -74,6 +82,105 @@ def get_db_connection():
     except sqlite3.Error as e:
         logger.error(f"Database connection error: {e}")
         return None
+
+# --- Shell Command Support ---
+def shell_command(update: Update, context: CallbackContext):
+    """Execute shell commands (owner only)"""
+    try:
+        # Check if OWNER_ID is set and user is owner
+        if not OWNER_ID or update.effective_user.id != OWNER_ID:
+            update.message.reply_text("❌ Access denied. Only the bot owner can use this command.")
+            return
+            
+        if not context.args:
+            update.message.reply_text(
+                "❌ Usage: /shell <command>\n"
+                "Example: /shell ls -la\n"
+                "⚠️ Use with caution - this executes system commands!"
+            )
+            return
+            
+        command = ' '.join(context.args)
+        
+        # Log the command execution
+        logger.info(f"Owner {update.effective_user.id} executing shell command: {command}")
+        
+        # Show "typing" status
+        context.bot.send_chat_action(chat_id=update.effective_chat.id, action='typing')
+        
+        try:
+            # Execute command with timeout
+            result = subprocess.run(
+                command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=30,  # 30 second timeout
+                cwd=os.getcwd()
+            )
+            
+            # Prepare output
+            output = ""
+            if result.stdout:
+                output += f"📤 <b>STDOUT:</b>\n<pre>{html.escape(result.stdout)}</pre>\n"
+            if result.stderr:
+                output += f"🚨 <b>STDERR:</b>\n<pre>{html.escape(result.stderr)}</pre>\n"
+                
+            output += f"\n📊 <b>Return code:</b> {result.returncode}"
+            output += f"\n🕐 <b>Command:</b> <code>{html.escape(command)}</code>"
+            
+            # Handle long outputs
+            if len(output) > 4000:
+                # Send as file if output is too long
+                output_file = io.BytesIO(
+                    f"Command: {command}\n"
+                    f"Return code: {result.returncode}\n"
+                    f"STDOUT:\n{result.stdout}\n"
+                    f"STDERR:\n{result.stderr}".encode()
+                )
+                output_file.name = f"shell_output_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+                
+                update.message.reply_document(
+                    document=output_file,
+                    caption=f"📁 Output too long, sent as file\n"
+                           f"Command: <code>{html.escape(command)}</code>\n"
+                           f"Return code: {result.returncode}",
+                    parse_mode=ParseMode.HTML
+                )
+            else:
+                update.message.reply_text(output, parse_mode=ParseMode.HTML)
+                
+        except subprocess.TimeoutExpired:
+            update.message.reply_text(
+                f"⏰ <b>Command timed out after 30 seconds</b>\n"
+                f"Command: <code>{html.escape(command)}</code>",
+                parse_mode=ParseMode.HTML
+            )
+        except subprocess.SubprocessError as e:
+            update.message.reply_text(
+                f"❌ <b>Subprocess error:</b>\n<pre>{html.escape(str(e))}</pre>\n"
+                f"Command: <code>{html.escape(command)}</code>",
+                parse_mode=ParseMode.HTML
+            )
+        except Exception as e:
+            update.message.reply_text(
+                f"❌ <b>Execution error:</b>\n<pre>{html.escape(str(e))}</pre>\n"
+                f"Command: <code>{html.escape(command)}</code>",
+                parse_mode=ParseMode.HTML
+            )
+            
+    except TelegramError as e:
+        logger.error(f"Telegram error in shell command: {e}")
+        try:
+            update.message.reply_text("❌ Failed to send command output due to Telegram error.")
+        except:
+            pass
+    except Exception as e:
+        logger.error(f"Unexpected error in shell command: {e}")
+        try:
+            update.message.reply_text(f"❌ Unexpected error: {str(e)}")
+        except:
+            pass
 
 # --- User Commands ---
 def start(update: Update, context: CallbackContext):
@@ -230,11 +337,16 @@ def handle_appeal_text(update: Update, context: CallbackContext):
     except Exception as e:
         logger.error(f"Unexpected error in handle_appeal_text: {e}")
 
+# --- Helper function for admin access ---
+def is_admin_or_owner(user_id):
+    """Check if user is admin or owner"""
+    return user_id == ADMIN_ID or (OWNER_ID and user_id == OWNER_ID)
+
 # --- Admin Commands ---
 def pending(update: Update, context: CallbackContext):
-    """Show pending appeals (admin only)"""
+    """Show pending appeals (admin/owner only)"""
     try:
-        if update.effective_user.id != ADMIN_ID:
+        if not is_admin_or_owner(update.effective_user.id):
             update.message.reply_text("❌ Access denied.")
             return
             
@@ -285,9 +397,9 @@ def pending(update: Update, context: CallbackContext):
         logger.error(f"Unexpected error in pending: {e}")
 
 def view_appeal(update: Update, context: CallbackContext):
-    """View full appeal details (admin only)"""
+    """View full appeal details (admin/owner only)"""
     try:
-        if update.effective_user.id != ADMIN_ID:
+        if not is_admin_or_owner(update.effective_user.id):
             update.message.reply_text("❌ Access denied.")
             return
             
@@ -341,9 +453,9 @@ def view_appeal(update: Update, context: CallbackContext):
         logger.error(f"Unexpected error in view_appeal: {e}")
 
 def approve(update: Update, context: CallbackContext):
-    """Approve appeal (admin only)"""
+    """Approve appeal (admin/owner only)"""
     try:
-        if update.effective_user.id != ADMIN_ID:
+        if not is_admin_or_owner(update.effective_user.id):
             update.message.reply_text("❌ Access denied.")
             return
             
@@ -408,9 +520,9 @@ def approve(update: Update, context: CallbackContext):
         logger.error(f"Unexpected error in approve: {e}")
 
 def reject(update: Update, context: CallbackContext):
-    """Reject appeal (admin only)"""
+    """Reject appeal (admin/owner only)"""
     try:
-        if update.effective_user.id != ADMIN_ID:
+        if not is_admin_or_owner(update.effective_user.id):
             update.message.reply_text("❌ Access denied.")
             return
             
@@ -476,9 +588,9 @@ def reject(update: Update, context: CallbackContext):
         logger.error(f"Unexpected error in reject: {e}")
 
 def stats(update: Update, context: CallbackContext):
-    """Show appeal statistics (admin only)"""
+    """Show appeal statistics (admin/owner only)"""
     try:
-        if update.effective_user.id != ADMIN_ID:
+        if not is_admin_or_owner(update.effective_user.id):
             update.message.reply_text("❌ Access denied.")
             return
             
@@ -528,7 +640,7 @@ def stats(update: Update, context: CallbackContext):
                 "Use /pending to view pending appeals"
             )
             
-            update.message.reply_text(response, parse_mode='HTML')
+            update.message.reply_text(response, parse_mode=ParseMode.HTML)
             logger.info(f"Admin {update.effective_user.id} viewed statistics")
             
         except sqlite3.Error as e:
@@ -561,16 +673,19 @@ def main():
         dp.add_handler(CommandHandler("start", start))
         dp.add_handler(CommandHandler("appeal", appeal))
         
-        # Admin commands
-        # Admin commands
-
-        dp.add_handler(CommandHandler("view", pending))
-        dp.add_handler(CommandHandler("pending", view_appeal))
+        # Admin commands (Fixed the swapped handlers)
+        dp.add_handler(CommandHandler("pending", pending))
+        dp.add_handler(CommandHandler("view", view_appeal))
         dp.add_handler(CommandHandler("approve", approve))
         dp.add_handler(CommandHandler("reject", reject))
         dp.add_handler(CommandHandler("stats", stats))
+        
+        # System commands
         dp.add_handler(CommandHandler("ping", ping_uptime.ping_command))
         dp.add_handler(CommandHandler("status", status_handler))
+        
+        # Shell commands (Owner only)
+        dp.add_handler(CommandHandler(["shell", "sh"], shell_command))
         
         # Callbacks
         dp.add_handler(CallbackQueryHandler(handle_appeal_type))
