@@ -670,7 +670,6 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     logger.error("Exception while handling an update:", exc_info=context.error)
 
-# --- MODIFIED MAIN FUNCTION ---
 async def main() -> None:
     """Start the bot."""
     init_db()
@@ -684,7 +683,7 @@ async def main() -> None:
             TYPING_APPEAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_appeal_text)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
-        per_message=False # This silences the warning you were seeing
+        per_message=False
     )
     application.add_handler(conv_handler)
     
@@ -710,22 +709,26 @@ async def main() -> None:
         await application.updater.start_polling()
         
         conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("SELECT COUNT(*) FROM admins")
-        num_admins = c.fetchone()[0]
-        conn.close()
+        if conn:
+            c = conn.cursor()
+            c.execute("SELECT COUNT(*) FROM admins")
+            num_admins = c.fetchone()[0]
+            conn.close()
+            logger.info(f"Loaded with {num_admins} admin(s) from DB and owner: {OWNER_ID}")
+        else:
+            logger.error("Could not connect to DB to count admins.")
 
-        logger.info(f"Loaded with {num_admins} admin(s) from DB and owner: {OWNER_ID}")
         print("Bot is running...")
         
-        # Keep the script running
         await asyncio.Event().wait()
 
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Bot shutdown requested.")
     except Exception as e:
-        logger.error(f"An error occurred during bot startup or runtime: {e}")
+        logger.error(f"An error occurred during bot runtime: {e}", exc_info=True)
     finally:
         logger.info("Shutting down bot...")
-        if application.updater and application.updater.is_running():
+        if application.updater and application.updater.running:
             await application.updater.stop()
         await application.shutdown()
         logger.info("Bot shutdown complete.")
@@ -734,4 +737,4 @@ if __name__ == '__main__':
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("Bot stopped by user (KeyboardInterrupt)")
+        logger.info("Bot stopped by user (KeyboardInterrupt from outer scope)")
