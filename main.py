@@ -6,7 +6,7 @@ import html
 import io
 import asyncio
 from datetime import datetime
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -15,6 +15,7 @@ from telegram.ext import (
     filters,
     ContextTypes,
     ConversationHandler,
+    ParseMode,
 )
 from telegram.error import TelegramError
 from dotenv import load_dotenv
