@@ -421,7 +421,6 @@ async def shell_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"Owner {update.effective_user.id} executing shell command: {command}")
     
     try:
-        # Run the blocking subprocess call in a separate thread
         proc = await asyncio.create_subprocess_shell(
             command,
             stdout=asyncio.subprocess.PIPE,
@@ -430,9 +429,9 @@ async def shell_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
         
         output = ""
-        if stdout:
+        if stdout and stdout.decode():
             output += f"📤 <b>STDOUT:</b>\n<pre>{html.escape(stdout.decode().strip())}</pre>\n"
-        if stderr:
+        if stderr and stderr.decode():
             output += f"🚨 <b>STDERR:</b>\n<pre>{html.escape(stderr.decode().strip())}</pre>\n"
             
         output += f"\n📊 <b>Return code:</b> {proc.returncode}"
@@ -455,7 +454,7 @@ async def shell_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode=ParseMode.HTML
             )
         else:
-            await update.message.reply_text(output or "Command executed with no output.", parse_mode=ParseMode.HTML)
+            await update.message.reply_text(output or f"Command executed with return code {proc.returncode} and no output.", parse_mode=ParseMode.HTML)
             
     except asyncio.TimeoutError:
         await update.message.reply_text(
@@ -671,12 +670,13 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     logger.error("Exception while handling an update:", exc_info=context.error)
 
-async def main():
+# --- MODIFIED MAIN FUNCTION ---
+async def main() -> None:
+    """Start the bot."""
     init_db()
-    
+
     application = Application.builder().token(BOT_TOKEN).build()
-    
-    # Conversation handler for the appeal process
+
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("appeal", appeal)],
         states={
@@ -684,46 +684,54 @@ async def main():
             TYPING_APPEAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_appeal_text)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
+        per_message=False # This silences the warning you were seeing
     )
-
     application.add_handler(conv_handler)
     
-    # User commands
+    # Add other handlers
     application.add_handler(CommandHandler("start", start))
-    
-    # Admin commands
     application.add_handler(CommandHandler("pending", pending))
     application.add_handler(CommandHandler("view", view_appeal))
     application.add_handler(CommandHandler("approve", approve))
     application.add_handler(CommandHandler("reject", reject))
     application.add_handler(CommandHandler("stats", stats))
     application.add_handler(CommandHandler("admins", list_admins))
-    
-    # Owner commands
     application.add_handler(CommandHandler("addadmin", add_admin))
     application.add_handler(CommandHandler("removeadmin", remove_admin))
-    
-    # System commands
     application.add_handler(CommandHandler("ping", ping_command))
     application.add_handler(CommandHandler("status", async_status_handler))
-    
-    # Shell commands (Owner only)
     application.add_handler(CommandHandler(["shell", "sh"], shell_command))
-    
-    # Error handler
     application.add_error_handler(error_handler)
-    
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT COUNT(*) FROM admins")
-    num_admins = c.fetchone()[0]
-    conn.close()
-    
-    logger.info("Bot started successfully")
-    logger.info(f"Loaded with {num_admins} admin(s) from DB and owner: {OWNER_ID}")
-    print("Bot is running...")
-    
-    await application.run_polling()
+
+    try:
+        logger.info("Initializing bot...")
+        await application.initialize()
+        logger.info("Starting bot polling...")
+        await application.updater.start_polling()
+        
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM admins")
+        num_admins = c.fetchone()[0]
+        conn.close()
+
+        logger.info(f"Loaded with {num_admins} admin(s) from DB and owner: {OWNER_ID}")
+        print("Bot is running...")
+        
+        # Keep the script running
+        await asyncio.Event().wait()
+
+    except Exception as e:
+        logger.error(f"An error occurred during bot startup or runtime: {e}")
+    finally:
+        logger.info("Shutting down bot...")
+        if application.updater and application.updater.is_running():
+            await application.updater.stop()
+        await application.shutdown()
+        logger.info("Bot shutdown complete.")
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user (KeyboardInterrupt)")
