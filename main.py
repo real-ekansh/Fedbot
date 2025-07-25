@@ -701,6 +701,7 @@ async def main() -> None:
     application.add_handler(conv_handler)
     
     # Add other handlers
+    application.add_handler(MessageHandler(filters.ALL, catch_all_updates), group=1)
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("pending", pending))
     application.add_handler(CommandHandler("view", view_appeal))
