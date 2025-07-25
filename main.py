@@ -131,6 +131,19 @@ def is_admin_or_owner(user_id: int) -> bool:
 # --- States for Conversation Handler ---
 SELECTING_TYPE, TYPING_APPEAL = range(2)
 
+async def catch_all_updates(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Ta funkcja przechwytuje i drukuje KAŻDĄ aktualizację, którą otrzymuje bot."""
+    print("\n" + "="*50)
+    print(f"--- DEBUG: Otrzymano aktualizację ---")
+    print(f"--- Typ: {type(update).__name__} ---")
+    if update.message:
+        print(f"--- Wiadomość od: {update.message.from_user.id} ---")
+        print(f"--- Tekst: {update.message.text} ---")
+    elif update.callback_query:
+        print(f"--- Zapytanie od: {update.callback_query.from_user.id} ---")
+        print(f"--- Dane: {update.callback_query.data} ---")
+    print("="*50 + "\n")
+
 # --- User Commands ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
