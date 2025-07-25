@@ -1,5 +1,5 @@
-python-telegram-bot==13.15
-python-dotenv==1.0.0
-six==1.16.0
-urllib3==1.26.18
+python-telegram-bot
+python-dotenv
+six
+urllib3
 psutil
